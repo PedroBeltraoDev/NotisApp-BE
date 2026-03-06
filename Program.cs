@@ -1,22 +1,13 @@
 using Microsoft.EntityFrameworkCore;
-using Microsoft.OpenApi;
-using Microsoft.OpenApi.Models;
 using NotesApp.Api.Data;
 using NotesApp.Api.Repositories;
 using NotesApp.Api.Services;
-using NotesApp.Api.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-
-// Swagger com configuracao
-builder.Services.AddSwaggerGen(c =>
-{
-    c.SwaggerDoc("v1", new OpenApiInfo { Title = "NoteesApp API", Version = "v1" });
-});
 
 // Registrar Repositories e Services
 builder.Services.AddScoped<INoteRepository, NoteRepository>();
@@ -26,7 +17,7 @@ builder.Services.AddScoped<INoteService, NoteService>();
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// CORS - Unica politica, sem espacos
+// CORS - Unica politica
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
@@ -43,18 +34,8 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Configure pipeline
-if (app.Environment.IsDevelopment() || app.Environment.IsProduction())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI(c =>
-    {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "NoteesApp API v1");
-    });
-}
-
+// Configure pipeline - SEM middleware
 app.UseHttpsRedirection();
-app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.UseCors("AllowFrontend");
 app.UseAuthorization();
 app.MapControllers();
