@@ -34,7 +34,7 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Configure pipeline - SEM middleware
+// Configure pipeline 
 app.UseHttpsRedirection();
 app.UseCors("AllowFrontend");
 app.UseAuthorization();
