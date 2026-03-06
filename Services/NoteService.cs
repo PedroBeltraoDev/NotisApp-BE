@@ -1,4 +1,5 @@
 ﻿using NotesApp.Api.DTOs;
+using NotesApp.Api.Mappers;
 using NotesApp.Api.Models;
 using NotesApp.Api.Repositories;
 
@@ -7,126 +8,118 @@ namespace NotesApp.Api.Services;
 public class NoteService : INoteService
 {
     private readonly INoteRepository _repository;
-    
-    public NoteService(INoteRepository repository)
+    private readonly ILogger<NoteService> _logger;
+
+    public NoteService(INoteRepository repository, ILogger<NoteService> logger)
     {
         _repository = repository;
+        _logger = logger;
     }
-    
-    public async Task<IEnumerable<Note>> GetAllNotesAsync()
+
+    public async Task<Note> GetByIdAsync(int id)
     {
+        _logger.LogInformation("Buscando nota com ID {NoteId}", id);
+        
+        var note = await _repository.GetByIdAsync(id);
+        
+        if (note == null)
+        {
+            _logger.LogWarning("Nota com ID {NoteId} não encontrada", id);
+            throw new KeyNotFoundException($"Nota com ID {id} não encontrada");
+        }
+        
+        return note;
+    }
+
+    public async Task<IEnumerable<Note>> GetAllAsync()
+    {
+        _logger.LogInformation("Buscando todas as notas");
         return await _repository.GetAllAsync();
     }
-    
-    public async Task<Note?> GetNoteByIdAsync(int id)
+
+    public async Task<IEnumerable<Note>> GetFilteredAsync(string? folder, string? tag)
     {
-        return await _repository.GetByIdAsync(id);
-    }
-    
-    public async Task<IEnumerable<Note>> GetNotesByFolderAsync(string folder)
-    {
-        return await _repository.GetByFolderAsync(folder);
-    }
-    
-    public async Task<IEnumerable<Note>> GetNotesByTagAsync(string tag)
-    {
-        return await _repository.GetByTagAsync(tag);
-    }
-    
-    public async Task<IEnumerable<Note>> GetFilteredNotesAsync(string? folder, string? tag)
-    {
-        return await _repository.GetFilteredAsync(folder, tag);
-    }
-    
-    public async Task<IEnumerable<Note>> SearchNotesAsync(string query)
-    {
-        if (string.IsNullOrWhiteSpace(query))
+        _logger.LogInformation("Filtrando notas - Pasta: {Folder}, Tag: {Tag}", folder, tag);
+        
+        if (!string.IsNullOrEmpty(folder) && !string.IsNullOrEmpty(tag))
         {
-            return await GetAllNotesAsync();
+            var notes = await _repository.GetByFolderAsync(folder);
+            return notes.Where(n => n.Tags != null && n.Tags.Contains(tag));
         }
         
-        var allNotes = await GetAllNotesAsync();
-        return allNotes.Where(n => 
-            n.Title.Contains(query, StringComparison.OrdinalIgnoreCase) || 
-            n.Content.Contains(query, StringComparison.OrdinalIgnoreCase));
-    }
-    
-    public async Task<Note> CreateNoteAsync(CreateNoteDto dto)
-    {
-        // Validação de negócio
-        if (string.IsNullOrWhiteSpace(dto.Title))
-        {
-            throw new ArgumentException("Title is required");
-        }
-    
-        if (dto.Title.Length < 3)
-        {
-            throw new ArgumentException("Title must be at least 3 characters");
-        }
-    
-        if (string.IsNullOrWhiteSpace(dto.Content))
-        {
-            throw new ArgumentException("Content is required");
-        }
-    
-        if (dto.Content.Length < 10)
-        {
-            throw new ArgumentException("Content must be at least 10 characters");
-        }
-    
-        var note = new Note
-        {
-            Title = dto.Title.Trim(),
-            Content = dto.Content.Trim(),
-            Tags = dto.Tags ?? new List<string>(),
-            Folder = dto.Folder,
-            CreatedAt = DateTime.UtcNow, 
-            IsPinned = false
-        };
-    
-        return await _repository.CreateAsync(note);
-    }
-    
-    public async Task UpdateNoteAsync(int id, UpdateNoteDto dto)
-    {
-        // Validações...
-    
-        var existingNote = await _repository.GetByIdAsync(id);
-    
-        if (existingNote == null)
-        {
-            throw new KeyNotFoundException($"Note with id {id} not found");
-        }
-    
-        existingNote.Title = dto.Title.Trim();
-        existingNote.Content = dto.Content.Trim();
-        existingNote.Tags = dto.Tags ?? new List<string>();
-        existingNote.Folder = dto.Folder;
-        existingNote.IsPinned = dto.IsPinned;
-        existingNote.UpdatedAt = DateTime.UtcNow; 
-    
-        await _repository.UpdateAsync(existingNote);
-    }
-    
-    public async Task DeleteNoteAsync(int id)
-    {
-        var existingNote = await _repository.GetByIdAsync(id);
+        if (!string.IsNullOrEmpty(folder))
+            return await _repository.GetByFolderAsync(folder);
         
-        if (existingNote == null)
-        {
-            throw new KeyNotFoundException($"Note with id {id} not found");
-        }
+        if (!string.IsNullOrEmpty(tag))
+            return await _repository.GetByTagAsync(tag);
         
+        return await GetAllAsync();
+    }
+
+    public async Task<Note> CreateAsync(CreateNoteDto dto)
+    {
+        _logger.LogInformation("Criando nova nota: {Title}", dto.Title);
+        
+        await ValidateNoteData(dto.Title, dto.Content);
+        
+        var note = NoteMapper.FromCreateDto(dto);
+        var created = await _repository.CreateAsync(note);
+        
+        _logger.LogInformation("Nota criada com sucesso - ID: {NoteId}", created.Id);
+        return created;
+    }
+
+    public async Task<Note> UpdateAsync(UpdateNoteDto dto)
+    {
+        _logger.LogInformation("Atualizando nota ID: {NoteId}", dto.Id);
+        
+        var existing = await GetByIdAsync(dto.Id);
+        await ValidateNoteData(dto.Title, dto.Content);
+        
+        NoteMapper.UpdateFromDto(existing, dto);
+        await _repository.UpdateAsync(existing);
+        
+        _logger.LogInformation("Nota atualizada com sucesso - ID: {NoteId}", dto.Id);
+        return existing;
+    }
+
+    public async Task DeleteAsync(int id)
+    {
+        _logger.LogInformation("Excluindo nota ID: {NoteId}", id);
+        
+        await GetByIdAsync(id); // Valida se existe
         await _repository.DeleteAsync(id);
+        
+        _logger.LogInformation("Nota excluída com sucesso - ID: {NoteId}", id);
     }
-    
-    public async Task<IEnumerable<string>> GetAvailableFoldersAsync()
+
+    public async Task<IEnumerable<string>> GetDistinctFoldersAsync()
     {
         return await _repository.GetDistinctFoldersAsync();
     }
-    
-    public async Task<IEnumerable<string>> GetAvailableTagsAsync()
+
+    public async Task<IEnumerable<string>> GetDistinctTagsAsync()
     {
         return await _repository.GetDistinctTagsAsync();
+    }
+
+    private async Task ValidateNoteData(string title, string content)
+    {
+        if (string.IsNullOrWhiteSpace(title))
+            throw new ArgumentException("Título é obrigatório", nameof(title));
+        
+        if (title.Length < 3 || title.Length > 200)
+            throw new ArgumentException("Título deve ter entre 3 e 200 caracteres", nameof(title));
+        
+        if (string.IsNullOrWhiteSpace(content))
+            throw new ArgumentException("Conteúdo é obrigatório", nameof(content));
+        
+        if (content.Length < 10 || content.Length > 1000)
+            throw new ArgumentException("Conteúdo deve ter entre 10 e 1000 caracteres", nameof(content));
+        
+        // Verificar duplicidade (opcional)
+        // var existing = await _repository.GetByTitleAsync(title);
+        // if (existing != null)
+        //     throw new InvalidOperationException("Já existe uma nota com este título");
     }
 }

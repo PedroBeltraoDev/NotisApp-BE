@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using NotesApp.Api.DTOs;
-using NotesApp.Api.Models;
+using NotesApp.Api.Mappers;
 using NotesApp.Api.Services;
 
 namespace NotesApp.Api.Controllers;
@@ -10,75 +10,156 @@ namespace NotesApp.Api.Controllers;
 public class NotesController : ControllerBase
 {
     private readonly INoteService _noteService;
-    
-    public NotesController(INoteService noteService)
+    private readonly ILogger<NotesController> _logger;
+
+    public NotesController(INoteService noteService, ILogger<NotesController> logger)
     {
         _noteService = noteService;
+        _logger = logger;
     }
-    
-    // GET: api/notes
+
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<Note>>> GetNotes(
+    public async Task<ActionResult<ApiResponseDto<IEnumerable<NoteResponseDto>>>> GetAll(
         [FromQuery] string? folder, 
         [FromQuery] string? tag)
     {
-        var notes = await _noteService.GetFilteredNotesAsync(folder, tag);
-        return Ok(notes);
+        try
+        {
+            var notes = await _noteService.GetFilteredAsync(folder, tag);
+            var response = NoteMapper.ToResponseDtoList(notes);
+            return Ok(ApiResponseDto<IEnumerable<NoteResponseDto>>.Ok(response));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Erro ao buscar notas");
+            return StatusCode(500, ApiResponseDto<IEnumerable<NoteResponseDto>>.Fail("Erro interno ao buscar notas"));
+        }
     }
-    
-    // GET: api/notes/5
+
     [HttpGet("{id}")]
-    public async Task<ActionResult<Note>> GetNote(int id)
+    public async Task<ActionResult<ApiResponseDto<NoteResponseDto>>> GetById(int id)
     {
-        var note = await _noteService.GetNoteByIdAsync(id);
-        return note == null ? NotFound() : Ok(note);
+        try
+        {
+            var note = await _noteService.GetByIdAsync(id);
+            var response = NoteMapper.ToResponseDto(note);
+            return Ok(ApiResponseDto<NoteResponseDto>.Ok(response));
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound(ApiResponseDto<NoteResponseDto>.Fail("Nota não encontrada"));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Erro ao buscar nota ID {NoteId}", id);
+            return StatusCode(500, ApiResponseDto<NoteResponseDto>.Fail("Erro interno ao buscar nota"));
+        }
     }
-    
-    // GET: api/notes/search?query=titulo
-    [HttpGet("search")]
-    public async Task<ActionResult<IEnumerable<Note>>> SearchNotes([FromQuery] string query)
-    {
-        var notes = await _noteService.SearchNotesAsync(query);
-        return Ok(notes);
-    }
-    
-    // GET: api/notes/folders
-    [HttpGet("folders")]
-    public async Task<ActionResult<IEnumerable<string>>> GetAvailableFolders()
-    {
-        var folders = await _noteService.GetAvailableFoldersAsync();
-        return Ok(folders);
-    }
-    
-    // GET: api/notes/tags
-    [HttpGet("tags")]
-    public async Task<ActionResult<IEnumerable<string>>> GetAvailableTags()
-    {
-        var tags = await _noteService.GetAvailableTagsAsync();
-        return Ok(tags);
-    }
-    
-    // POST: api/notes
+
     [HttpPost]
-    public async Task<ActionResult<Note>> CreateNote(CreateNoteDto dto)
+    public async Task<ActionResult<ApiResponseDto<NoteResponseDto>>> Create([FromBody] CreateNoteDto dto)
     {
-        var note = await _noteService.CreateNoteAsync(dto);
-        return CreatedAtAction(nameof(GetNote), new { id = note.Id }, note);
+        try
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ApiResponseDto<NoteResponseDto>.Fail("Dados inválidos"));
+            
+            var note = await _noteService.CreateAsync(dto);
+            var response = NoteMapper.ToResponseDto(note);
+            
+            return CreatedAtAction(
+                nameof(GetById), 
+                new { id = note.Id }, 
+                ApiResponseDto<NoteResponseDto>.Ok(response, "Nota criada com sucesso"));
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ApiResponseDto<NoteResponseDto>.Fail(ex.Message));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Erro ao criar nota");
+            return StatusCode(500, ApiResponseDto<NoteResponseDto>.Fail("Erro interno ao criar nota"));
+        }
     }
-    
-    // PUT: api/notes/5
+
     [HttpPut("{id}")]
-    public async Task<IActionResult> UpdateNote(int id, UpdateNoteDto dto)
+    public async Task<ActionResult<ApiResponseDto<NoteResponseDto>>> Update(int id, [FromBody] UpdateNoteDto dto)
     {
-        await _noteService.UpdateNoteAsync(id, dto);
-        return NoContent();
+        try
+        {
+            if (id != dto.Id)
+                return BadRequest(ApiResponseDto<NoteResponseDto>.Fail("ID incompatível"));
+            
+            if (!ModelState.IsValid)
+                return BadRequest(ApiResponseDto<NoteResponseDto>.Fail("Dados inválidos"));
+            
+            var note = await _noteService.UpdateAsync(dto);
+            var response = NoteMapper.ToResponseDto(note);
+            
+            return Ok(ApiResponseDto<NoteResponseDto>.Ok(response, "Nota atualizada com sucesso"));
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound(ApiResponseDto<NoteResponseDto>.Fail("Nota não encontrada"));
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ApiResponseDto<NoteResponseDto>.Fail(ex.Message));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Erro ao atualizar nota ID {NoteId}", id);
+            return StatusCode(500, ApiResponseDto<NoteResponseDto>.Fail("Erro interno ao atualizar nota"));
+        }
     }
-    
-    // DELETE: api/notes/5
+
     [HttpDelete("{id}")]
-    public async Task<IActionResult> DeleteNote(int id)
+    public async Task<ActionResult<ApiResponseDto<object>>> Delete(int id)
     {
-        await _noteService.DeleteNoteAsync(id);
-        return NoContent();
+        try
+        {
+            await _noteService.DeleteAsync(id);
+            return Ok(ApiResponseDto<object>.Ok(null, "Nota excluída com sucesso"));
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound(ApiResponseDto<object>.Fail("Nota não encontrada"));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Erro ao excluir nota ID {NoteId}", id);
+            return StatusCode(500, ApiResponseDto<object>.Fail("Erro interno ao excluir nota"));
+        }
+    }
+
+    [HttpGet("folders")]
+    public async Task<ActionResult<ApiResponseDto<IEnumerable<string>>>> GetFolders()
+    {
+        try
+        {
+            var folders = await _noteService.GetDistinctFoldersAsync();
+            return Ok(ApiResponseDto<IEnumerable<string>>.Ok(folders));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Erro ao buscar pastas");
+            return StatusCode(500, ApiResponseDto<IEnumerable<string>>.Fail("Erro ao buscar pastas"));
+        }
+    }
+
+    [HttpGet("tags")]
+    public async Task<ActionResult<ApiResponseDto<IEnumerable<string>>>> GetTags()
+    {
+        try
+        {
+            var tags = await _noteService.GetDistinctTagsAsync();
+            return Ok(ApiResponseDto<IEnumerable<string>>.Ok(tags));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Erro ao buscar tags");
+            return StatusCode(500, ApiResponseDto<IEnumerable<string>>.Fail("Erro ao buscar tags"));
+        }
     }
 }
