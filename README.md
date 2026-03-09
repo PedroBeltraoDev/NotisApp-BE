@@ -108,7 +108,6 @@ NotesApp.Api
 │   ├── NoteResponseDto.cs
 │   └── ApiResponseDto.cs
 │
-```
 ├── Mappers
 │   └── NoteMapper.cs
 │
