@@ -6,7 +6,9 @@ using NotesApp.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services
+var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
@@ -32,7 +34,7 @@ builder.Services.AddScoped<INoteService, NoteService>();
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-//CORS 
+// CORS 
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
@@ -50,8 +52,8 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Configure pipeline
-if (app.Environment.IsDevelopment())
+//Swagger
+if (app.Environment.IsDevelopment() || Environment.GetEnvironmentVariable("ENABLE_SWAGGER") == "true")
 {
     app.UseSwagger();
     app.UseSwaggerUI(c =>
@@ -61,7 +63,11 @@ if (app.Environment.IsDevelopment())
     });
 }
 
-app.UseHttpsRedirection();
+if (app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
+
 app.UseCors("AllowFrontend");
 app.UseAuthorization();
 app.MapControllers();
