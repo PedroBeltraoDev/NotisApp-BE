@@ -99,11 +99,19 @@ public class NoteRepository : INoteRepository
     
     public async Task<IEnumerable<string>> GetDistinctTagsAsync()
     {
-        return await _context.Notes
-            .SelectMany(n => n.Tags)
-            .Where(tag => !string.IsNullOrWhiteSpace(tag))  
-            .Distinct()                                      
-            .OrderBy(tag => tag)                             
+        // Trazer todas as notas com tags para memória
+        var notes = await _context.Notes
+            .Where(n => n.Tags != null && n.Tags.Count > 0)
             .ToListAsync();
+    
+        // Processar tags em C# e retornar como IEnumerable
+        return notes
+            .SelectMany(n => n.Tags)
+            .Where(t => !string.IsNullOrWhiteSpace(t))
+            .Select(t => t.Trim())
+            .Distinct()
+            .OrderBy(t => t)
+            .ToList()  // Cria List<string>
+            .AsEnumerable();  // ← Cast para IEnumerable<string>
     }
 }

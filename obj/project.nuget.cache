@@ -39,7 +39,7 @@
     {
       "code": "NU1903",
       "level": "Warning",
-      "message": "O pacote 'Npgsql' 8.0.0 tem uma alta vulnerabilidade de gravidade conhecida, https://github.com/advisories/GHSA-x9vc-6hfv-hg8c",
+      "message": "Package 'Npgsql' 8.0.0 has a known high severity vulnerability, https://github.com/advisories/GHSA-x9vc-6hfv-hg8c",
       "projectPath": "D:\\NotisProject\\backend\\NotesApp.Api\\NotesApp.Api.csproj",
       "warningLevel": 1,
       "filePath": "D:\\NotisProject\\backend\\NotesApp.Api\\NotesApp.Api.csproj",
