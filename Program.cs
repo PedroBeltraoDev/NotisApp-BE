@@ -9,59 +9,51 @@ var builder = WebApplication.CreateBuilder(args);
 var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
 builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 
-builder.Services.AddControllers();
+// Services
+builder.Services.AddControllers();  // ← CRÍTICO: Controllers habilitados
 builder.Services.AddEndpointsApiExplorer();
+
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo
     {
         Title = "NoteesApp API",
         Version = "v1",
-        Description = "API RESTful para gerenciamento de notas com organização por pastas e tags",
-        Contact = new OpenApiContact
-        {
-            Name = "Pedro Beltrão GitHub",
-            Email = "pedrobeltraodev@gmail.com",
-            Url = new Uri("https://github.com/PedroBeltraoDev")
-        }
+        Description = "API RESTful para gerenciamento de notas"
     });
 });
 
 builder.Services.AddScoped<INoteRepository, NoteRepository>();
 builder.Services.AddScoped<INoteService, NoteService>();
 
-// Entity Framework com PostgreSQL (Neon)
+// Entity Framework
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// CORS 
+// CORS
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
         policy.WithOrigins(
-            "https://notees-app-ui.vercel.app",
-            "http://localhost:5173",
-            "http://localhost:4173"
-        )
-        .AllowAnyMethod()
-        .AllowAnyHeader()
-        .AllowCredentials();
+                "https://notees-app-ui.vercel.app",
+                "http://localhost:5173",
+                "http://localhost:4173"
+            )
+            .AllowAnyMethod()
+            .AllowAnyHeader()
+            .AllowCredentials();
     });
 });
 
 var app = builder.Build();
 
-//Swagger
-if (app.Environment.IsDevelopment() || Environment.GetEnvironmentVariable("ENABLE_SWAGGER") == "true")
+app.UseSwagger();
+app.UseSwaggerUI(c =>
 {
-    app.UseSwagger();
-    app.UseSwaggerUI(c =>
-    {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "NoteesApp API v1");
-        c.RoutePrefix = string.Empty;
-    });
-}
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "NoteesApp API v1");
+    c.RoutePrefix = "swagger";
+});
 
 if (app.Environment.IsDevelopment())
 {
