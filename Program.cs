@@ -36,9 +36,14 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowFrontend", policy =>
     {
         policy.WithOrigins(
+                //Vercel
+                "https://notees-app-fh6s6ten2-pedro-beltraos-projects.vercel.app",
                 "https://notees-app-ui.vercel.app",
+            
+                //Desenvolvimento local
                 "http://localhost:5173",
-                "http://localhost:4173"
+                "http://localhost:4173",
+                "http://localhost:3000"
             )
             .AllowAnyMethod()
             .AllowAnyHeader()
