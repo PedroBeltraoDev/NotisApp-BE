@@ -8,6 +8,7 @@
 
     <ItemGroup>
         <!-- Swagger -->
+        <PackageReference Include="AutoMapper.Extensions.Microsoft.DependencyInjection" Version="12.0.1" />
         <PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
         <PackageReference Include="Microsoft.OpenApi" Version="1.6.14" />
 

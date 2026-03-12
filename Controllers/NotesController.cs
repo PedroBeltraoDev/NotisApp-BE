@@ -1,6 +1,6 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using AutoMapper;
+using Microsoft.AspNetCore.Mvc;
 using NotesApp.Api.DTOs;
-using NotesApp.Api.Mappers;
 using NotesApp.Api.Services;
 
 namespace NotesApp.Api.Controllers;
@@ -11,11 +11,16 @@ public class NotesController : ControllerBase
 {
     private readonly INoteService _noteService;
     private readonly ILogger<NotesController> _logger;
+    private readonly IMapper _mapper;
 
-    public NotesController(INoteService noteService, ILogger<NotesController> logger)
+    public NotesController(
+        INoteService noteService, 
+        ILogger<NotesController> logger,
+        IMapper mapper)
     {
         _noteService = noteService;
         _logger = logger;
+        _mapper = mapper;
     }
 
     [HttpGet]
@@ -26,7 +31,7 @@ public class NotesController : ControllerBase
         try
         {
             var notes = await _noteService.GetFilteredAsync(folder, tag);
-            var response = NoteMapper.ToResponseDtoList(notes);
+            var response = _mapper.Map<List<NoteResponseDto>>(notes);
             return Ok(ApiResponseDto<IEnumerable<NoteResponseDto>>.Ok(response));
         }
         catch (Exception ex)
@@ -42,7 +47,7 @@ public class NotesController : ControllerBase
         try
         {
             var note = await _noteService.GetByIdAsync(id);
-            var response = NoteMapper.ToResponseDto(note);
+            var response = _mapper.Map<NoteResponseDto>(note);
             return Ok(ApiResponseDto<NoteResponseDto>.Ok(response));
         }
         catch (KeyNotFoundException)
@@ -64,12 +69,15 @@ public class NotesController : ControllerBase
             if (!ModelState.IsValid)
                 return BadRequest(ApiResponseDto<NoteResponseDto>.Fail("Dados inválidos"));
             
-            var note = await _noteService.CreateAsync(dto);
-            var response = NoteMapper.ToResponseDto(note);
+            //Passar DTO para o Service
+            var createdNote = await _noteService.CreateAsync(dto);
+            
+            //Mapear Note → NoteResponseDto para resposta
+            var response = _mapper.Map<NoteResponseDto>(createdNote);
             
             return CreatedAtAction(
                 nameof(GetById), 
-                new { id = note.Id }, 
+                new { id = createdNote.Id }, 
                 ApiResponseDto<NoteResponseDto>.Ok(response, "Nota criada com sucesso"));
         }
         catch (ArgumentException ex)
@@ -94,8 +102,11 @@ public class NotesController : ControllerBase
             if (!ModelState.IsValid)
                 return BadRequest(ApiResponseDto<NoteResponseDto>.Fail("Dados inválidos"));
             
-            var note = await _noteService.UpdateAsync(dto);
-            var response = NoteMapper.ToResponseDto(note);
+            //Passar DTO para o Service 
+            var updatedNote = await _noteService.UpdateAsync(dto);
+            
+            //Mapear Note → NoteResponseDto para resposta
+            var response = _mapper.Map<NoteResponseDto>(updatedNote);
             
             return Ok(ApiResponseDto<NoteResponseDto>.Ok(response, "Nota atualizada com sucesso"));
         }

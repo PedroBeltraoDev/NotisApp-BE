@@ -1,8 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 using NotesApp.Api.Data;
+using NotesApp.Api.Mappers;
 using NotesApp.Api.Repositories;
 using NotesApp.Api.Services;
+using AutoMapper;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -25,6 +27,7 @@ builder.Services.AddSwaggerGen(c =>
 
 builder.Services.AddScoped<INoteRepository, NoteRepository>();
 builder.Services.AddScoped<INoteService, NoteService>();
+builder.Services.AddAutoMapper(typeof(MappingProfile));
 
 // Entity Framework
 builder.Services.AddDbContext<AppDbContext>(options =>
