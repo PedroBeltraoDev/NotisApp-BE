@@ -4,7 +4,6 @@ using NotesApp.Api.Data;
 using NotesApp.Api.Mappers;
 using NotesApp.Api.Repositories;
 using NotesApp.Api.Services;
-using AutoMapper;
 
 var builder = WebApplication.CreateBuilder(args);
 

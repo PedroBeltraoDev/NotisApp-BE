@@ -1,16 +1,25 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.ComponentModel.DataAnnotations;
 
 namespace NotesApp.Api.Models;
 
 public class Note
 {
-    public int Id { get; set; }
+    public int Id { get; init; }
+    
+    [MaxLength(200)]
     public string Title { get; set; } = string.Empty;
+    
+    [MaxLength(1000)]
     public string Content { get; set; } = string.Empty;
-    public DateTime CreatedAt { get; set; } = DateTime.Now;
+    
+    public DateTime CreatedAt { get; init; } = DateTime.UtcNow;
+    
     public DateTime? UpdatedAt { get; set; }
-    public List<string> Tags { get; set; } = new();
-    public bool IsPinned { get; set; } = false;
+    
+    public List<string> Tags { get; init; } = [];
+    
+    public bool IsPinned { get; set; }
+    
+    [MaxLength(100)]
     public string? Folder { get; set; }
 }

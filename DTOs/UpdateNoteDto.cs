@@ -19,7 +19,7 @@ public class UpdateNoteDto
     
     public string? Folder { get; set; }
     
-    public List<string> Tags { get; set; } = new();
+    public List<string> Tags { get; set; } = [];
     
     public bool IsPinned { get; set; }
 }

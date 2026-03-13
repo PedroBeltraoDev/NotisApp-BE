@@ -49,7 +49,7 @@ public class NoteService : INoteService
         if (!string.IsNullOrEmpty(folder) && !string.IsNullOrEmpty(tag))
         {
             var notes = await _repository.GetByFolderAsync(folder);
-            return notes.Where(n => n.Tags != null && n.Tags.Contains(tag));
+            return notes.Where(n => n.Tags.Contains(tag));
         }
         
         if (!string.IsNullOrEmpty(folder))
@@ -64,15 +64,13 @@ public class NoteService : INoteService
     public async Task<Note> CreateAsync(CreateNoteDto dto)
     {
         _logger.LogInformation("Criando nova nota: {Title}", dto.Title);
-        
-        await ValidateNoteData(dto.Title, dto.Content);
-        
+    
+        ValidateNoteData(dto.Title, dto.Content);
+    
         var note = _mapper.Map<Note>(dto);
-        note.CreatedAt = DateTime.UtcNow;
-        note.UpdatedAt = DateTime.UtcNow;
-        
+    
         var created = await _repository.CreateAsync(note);
-        
+    
         _logger.LogInformation("Nota criada com sucesso - ID: {NoteId}", created.Id);
         return created;
     }
@@ -80,15 +78,14 @@ public class NoteService : INoteService
     public async Task<Note> UpdateAsync(UpdateNoteDto dto)
     {
         _logger.LogInformation("Atualizando nota ID: {NoteId}", dto.Id);
-        
+    
         var existing = await GetByIdAsync(dto.Id);
-        await ValidateNoteData(dto.Title, dto.Content);
-        
+        ValidateNoteData(dto.Title, dto.Content);
+    
         _mapper.Map(dto, existing);
-        existing.UpdatedAt = DateTime.UtcNow;
-        
+    
         await _repository.UpdateAsync(existing);
-        
+    
         _logger.LogInformation("Nota atualizada com sucesso - ID: {NoteId}", dto.Id);
         return existing;
     }
@@ -97,7 +94,7 @@ public class NoteService : INoteService
     {
         _logger.LogInformation("Excluindo nota ID: {NoteId}", id);
         
-        await GetByIdAsync(id); //Valida se existe
+        await GetByIdAsync(id);
         await _repository.DeleteAsync(id);
         
         _logger.LogInformation("Nota excluída com sucesso - ID: {NoteId}", id);
@@ -112,8 +109,8 @@ public class NoteService : INoteService
     {
         return await _repository.GetDistinctTagsAsync();
     }
-
-    private async Task ValidateNoteData(string title, string content)
+    
+    private void ValidateNoteData(string title, string content)
     {
         if (string.IsNullOrWhiteSpace(title))
             throw new ArgumentException("Título é obrigatório", nameof(title));
